@@ -249,6 +249,26 @@ namespace OfficeUtilsExternalLib
             int templateRowIndex = wordTable.StartRow;
             XWPFTableRow templateRow = table.GetRow(templateRowIndex); //Get template row
 
+            List<XWPFTableRow> dummyRowsToAddBack = new List<XWPFTableRow>();
+
+            bool hasDummyRows = templateRowIndex < table.NumberOfRows - 1;
+
+            if (hasDummyRows)
+            {
+                int startIndexOfDummyRowsToKeep = templateRowIndex + 1 + wordTable.TableRows.Count - 1;
+
+                int numberOfTableRows = table.NumberOfRows;
+
+                for (int i = startIndexOfDummyRowsToKeep; i < numberOfTableRows; i++)
+                {
+                    dummyRowsToAddBack.Add(table.GetRow(i));
+                }
+
+                for (int i = templateRowIndex + 1; i < numberOfTableRows; i++) //Removing dummy rows
+                {
+                    table.RemoveRow(templateRowIndex + 1);
+                }
+            }
 
             for (int i = 0; i < wordTable.TableRows.Count; i++) //Creating new rows based on the template
             {
@@ -291,13 +311,21 @@ namespace OfficeUtilsExternalLib
                 }
             }
 
+            if (hasDummyRows)
+            {
+                foreach (XWPFTableRow row in dummyRowsToAddBack)
+                {
+                    table.AddRow(row);
+                }
+            }
+
             table.RemoveRow(templateRowIndex);
         }
 
         private static XWPFTableRow CloneRow(XWPFTableRow templateRow)
         {
             XWPFTable table = templateRow.GetTable();
-
+            
             XWPFTableRow newRow = table.CreateRow();
             newRow.Height = templateRow.Height;
             newRow.IsCantSplitRow = templateRow.IsCantSplitRow;
