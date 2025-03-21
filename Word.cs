@@ -637,24 +637,36 @@ namespace OfficeUtilsExternalLib
 
         private static void ReplaceText(XWPFParagraph p, string pattern, string replaceText, int matchIndex, string url = "")
         {
+            //sanitize new lines: replace "\r\n" and "\r" with "\n"
             string newline = ((char)10).ToString() + (char)13;
             replaceText = replaceText.Replace(newline, ((char)10).ToString());
             newline = ((char)13).ToString() + (char)10;
             replaceText = replaceText.Replace(newline, ((char)10).ToString());
             replaceText = replaceText.Replace((char)13, (char)10);
 
-            List<TextIndex> texts = GetTextIndexList(p); //Get all the runs
+            //Get all the runs
+            List<TextIndex> texts = GetTextIndexList(p);
+
             //Get all the runs that have placeholder
-            int startRun = texts.IndexOf(texts.Find(x => x.StartIndex <= matchIndex && x.EndIndex >= matchIndex));
+            int startRunIndex = texts.IndexOf(texts.Find(x => x.StartIndex <= matchIndex && x.EndIndex >= matchIndex));
             int placeholderEndIndex = matchIndex + pattern.Length - 1;
-            int endRun = texts.IndexOf(texts.Find(x => x.StartIndex <= placeholderEndIndex && x.EndIndex >= placeholderEndIndex));
-            List<TextIndex> placeholderRuns = texts.GetRange(startRun, endRun - startRun + 1);
+            int endRunIndex = texts.IndexOf(texts.Find(x => x.StartIndex <= placeholderEndIndex && x.EndIndex >= placeholderEndIndex));
+            List<TextIndex> placeholderRuns = texts.GetRange(startRunIndex, endRunIndex - startRunIndex + 1);
+
             //Get all the text for those runs and replace it
             string runsText = placeholderRuns.Select(i => i.Text).Aggregate((i, j) => i + j);
+            string newRunText = runsText.Replace(pattern, replaceText);
+            if (newRunText.StartsWith("\t"))
+            {
+                newRunText = newRunText.Substring(1); // Don't repeat tabs. (TODO: If user want to replace with the text that starts with tab)
+            }
+
+            XWPFRun startRun = texts[startRunIndex].TextRun;
+
             PackageRelationship newRelationship = null;
             if (url != "") // This is if URL needs to be changed under the pattern
             {
-                if (texts[startRun].TextRun is XWPFHyperlinkRun run)
+                if (startRun is XWPFHyperlinkRun)
                 {
                     foreach (var part in p.Document.Package.GetParts())
                     {
@@ -671,11 +683,11 @@ namespace OfficeUtilsExternalLib
                 else
                 {
                     bool urlFound = false;
-                    for (int counter = startRun; counter >= 0; counter--)
+                    for (int i = startRunIndex; i >= 0; i--)
                     {
-                        if (texts[counter].TextRun.GetCTR().Items.Count > 0)
+                        if (texts[i].TextRun.GetCTR().Items.Count > 0)
                         {
-                            if (texts[counter].TextRun.GetCTR().Items[0] is CT_Text text)
+                            if (texts[i].TextRun.GetCTR().Items[0] is CT_Text text)
                             {
                                 if (text.Value.Contains("HYPERLINK"))
                                 {
@@ -690,57 +702,49 @@ namespace OfficeUtilsExternalLib
                 }
             }
 
-            string newRunText = runsText.Replace(pattern, replaceText);
-            if (newRunText.StartsWith("\t"))
-            {
-                newRunText = newRunText.Substring(1); // Don't repeat tabs. (TODO: If user want to replace with the text that starts with tab)
-            }
+
             //Populate with replaced text first run
             if (newRunText.Contains("\n"))
             {
-                //if the text withing the run had already new lines than they need to be removed, because the logic is
-                //to recreate them again (because the can be new lines in the replacement text and NPOI can add <br> olny to the end of the list)
+                //if the text within the run had already new lines than they need to be removed, because the logic is
+                //to recreate them again (because the can be new lines in the replacement text and NPOI can add <br> only to the end of the list)
 
-                string[] splitOldText = runsText.Split(new string[] { "\n" }, StringSplitOptions.None);
-                int brNumberToDelete = splitOldText.Length - 1;
                 string[] splitText = newRunText.Split(new string[] { "\n" }, StringSplitOptions.None);
-                texts[startRun].TextRun.SetText(splitText[0], 0);
+                startRun.SetText(splitText[0], 0);
 
-                foreach (var item in texts[startRun].TextRun.GetCTR().Items)
+                foreach (var item in startRun.GetCTR().Items)
                 {
                     if (item is CT_Br)
                     {
-                        texts[startRun].TextRun.GetCTR().Items.Remove(item);
+                        startRun.GetCTR().Items.Remove(item);
                     }
                 }
 
-
                 for (int i = 1; i != splitText.Length; i++)
                 {
-                    texts[startRun].TextRun.AddBreak(BreakClear.ALL);
-                    texts[startRun].TextRun.SetText(splitText[i], i);
-                    if (texts[startRun].TextRun is XWPFHyperlinkRun run && newRelationship != null)
-                    {
-                        run.GetCTHyperlink().id = newRelationship.Id;
-                    }
+                    startRun.AddBreak(BreakClear.ALL);
+                    startRun.SetText(splitText[i], i);
                 }
 
             }
             else
             {
-                texts[startRun].TextRun.SetText(newRunText, 0);
-                if (texts[startRun].TextRun is XWPFHyperlinkRun run && newRelationship != null)
-                {
-                    run.GetCTHyperlink().id = newRelationship.Id;
-                }
+                startRun.SetText(newRunText, 0);
             }
-            //Empty the next run
-            for (int j = startRun + 1; j <= endRun; j++)
+
+            if (startRun is XWPFHyperlinkRun run1 && newRelationship != null)
             {
-                texts[j].TextRun.SetText("");
-                if (texts[j].TextRun is XWPFHyperlinkRun run && newRelationship != null)
+                run1.GetCTHyperlink().id = newRelationship.Id;
+            }
+
+            //Empty the next runs
+            for (int i = startRunIndex + 1; i <= endRunIndex; i++)
+            {
+                XWPFRun nextRun = texts[i].TextRun;
+                nextRun.SetText("");
+                if (nextRun is XWPFHyperlinkRun run2 && newRelationship != null)
                 {
-                    run.GetCTHyperlink().id = newRelationship.Id;
+                    run2.GetCTHyperlink().id = newRelationship.Id;
                 }
             }
 
