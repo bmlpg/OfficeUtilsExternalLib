@@ -403,49 +403,7 @@ namespace OfficeUtilsExternalLib
 
         private static void ProcessExcelPicture(ExcelStructures.ExcelPicture excelPicture, XSSFWorkbook outputWorkbook, ISheet outputSheet)
         {
-            SixLabors.ImageSharp.Formats.IImageFormat imageFormat = SixLabors.ImageSharp.Image.DetectFormat(excelPicture.PictureBinary);
-
-            PictureType pictureType = new PictureType();
-
-            switch (imageFormat.Name)
-            {
-                case "EMF":
-                    pictureType = PictureType.EMF;
-                    break;
-                case "WMF":
-                    pictureType = PictureType.WMF;
-                    break;
-                case "PICT":
-                    pictureType = PictureType.PICT;
-                    break;
-                case "JPEG":
-                    pictureType = PictureType.JPEG;
-                    break;
-                case "PNG":
-                    pictureType = PictureType.PNG;
-                    break;
-                case "DIB":
-                    pictureType = PictureType.DIB;
-                    break;
-                case "GIF":
-                    pictureType = PictureType.GIF;
-                    break;
-                case "TIFF":
-                    pictureType = PictureType.TIFF;
-                    break;
-                case "EPS":
-                    pictureType = PictureType.EPS;
-                    break;
-                case "BMP":
-                    pictureType = PictureType.BMP;
-                    break;
-                case "WPG":
-                    pictureType = PictureType.WPG;
-                    break;
-                default:
-                    pictureType = PictureType.Unknown;
-                    break;
-            }
+            PictureType pictureType = Utils.GetPictureType(excelPicture.PictureBinary);
 
             int pictureIdx = outputWorkbook.AddPicture(excelPicture.PictureBinary, pictureType);
 

@@ -1,4 +1,6 @@
-﻿using SixLabors.ImageSharp;
+﻿using NPOI.SS.UserModel;
+using SixLabors.ImageSharp;
+using SixLabors.ImageSharp.Formats;
 using SixLabors.ImageSharp.Metadata;
 
 namespace OfficeUtilsExternalLib
@@ -30,6 +32,55 @@ namespace OfficeUtilsExternalLib
             }
 
             return new int[] { (int)Math.Round(horizontalResolution), (int)Math.Round(verticalResolution) };
+        }
+
+        public static PictureType GetPictureType(byte[] pictureBinary)
+        {
+            IImageFormat imageFormat = Image.DetectFormat(pictureBinary);
+
+            PictureType pictureType = new PictureType();
+
+            switch (imageFormat.Name)
+            {
+                case "EMF":
+                    pictureType = PictureType.EMF;
+                    break;
+                case "WMF":
+                    pictureType = PictureType.WMF;
+                    break;
+                case "PICT":
+                    pictureType = PictureType.PICT;
+                    break;
+                case "JPEG":
+                    pictureType = PictureType.JPEG;
+                    break;
+                case "PNG":
+                    pictureType = PictureType.PNG;
+                    break;
+                case "DIB":
+                    pictureType = PictureType.DIB;
+                    break;
+                case "GIF":
+                    pictureType = PictureType.GIF;
+                    break;
+                case "TIFF":
+                    pictureType = PictureType.TIFF;
+                    break;
+                case "EPS":
+                    pictureType = PictureType.EPS;
+                    break;
+                case "BMP":
+                    pictureType = PictureType.BMP;
+                    break;
+                case "WPG":
+                    pictureType = PictureType.WPG;
+                    break;
+                default:
+                    pictureType = PictureType.Unknown;
+                    break;
+            }
+
+            return pictureType;
         }
     }
 }

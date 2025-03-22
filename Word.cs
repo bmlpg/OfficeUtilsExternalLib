@@ -1,8 +1,6 @@
 ﻿using System.Collections;
 using NPOI.XWPF.UserModel;
 using NPOI.OpenXmlFormats.Wordprocessing;
-using NPOI.OpenXmlFormats.Dml;
-using NPOI.OpenXmlFormats.Dml.WordProcessing;
 using NPOI.OpenXml4Net.OPC;
 using System.Text;
 using SixLabors.ImageSharp;
@@ -766,128 +764,25 @@ namespace OfficeUtilsExternalLib
                 {
                     run = (XWPFRun)runs.Current;
                 }
-                AddPicture(run, wordPicture.Picture, context, wordPicture.Width);
+
+                Image img = Image.Load(wordPicture.Picture);
+                int[] dpi = Utils.GetResolution(img);
+
+                int picWidth = wordPicture.Width;
+                int width = ConvertPixelsToEmu(picWidth == 0 ? img.Width : picWidth, (float)dpi[0]);
+                int height = ConvertPixelsToEmu((picWidth == 0 ? img.Height : (picWidth * img.Height) / img.Width), (float)dpi[1]);
+
+                MemoryStream ms = new MemoryStream(wordPicture.Picture);
+                NPOI.SS.UserModel.PictureType pictureType = Utils.GetPictureType(wordPicture.Picture);
+
+                run.AddPicture(
+                    ms,
+                    (int)pictureType,
+                    "picture",
+                    width,
+                    height
+                );
             }
-        }
-
-        private static void AddPicture(XWPFRun run, byte[] pictureData, Object context, int picWidth)
-        {
-            MemoryStream ms1 = new MemoryStream(pictureData);
-
-            /*
-            Bitmap bm = new Bitmap(ms1);
-
-            int width = ConvertPixelsToEmu(picWidth == 0 ? bm.Width : picWidth, bm.HorizontalResolution);
-            int height = ConvertPixelsToEmu((picWidth == 0 ? bm.Height : (picWidth * bm.Height) / bm.Width), bm.VerticalResolution);
-            */
-
-            Image img = Image.Load(ms1);
-            int[] dpi = Utils.GetResolution(img);
-
-            int width = ConvertPixelsToEmu(picWidth == 0 ? img.Width : picWidth, (float)dpi[0]);
-            int height = ConvertPixelsToEmu((picWidth == 0 ? img.Height : (picWidth * img.Height) / img.Width), (float)dpi[1]);
-
-            string filename = "image1";
-
-            // Add the picture + relationship
-            String relationId;
-            int id;
-
-            if (context is XWPFDocument document)
-            {
-                id = document.GetNextPicNameNumber((int)NPOI.XWPF.UserModel.PictureType.PNG);
-                relationId = document.AddPictureData(pictureData, (int)NPOI.XWPF.UserModel.PictureType.PNG);
-            }
-            else if (context is XWPFHeader header)
-            {
-                id = header.GetXWPFDocument().GetNextPicNameNumber((int)NPOI.XWPF.UserModel.PictureType.PNG);
-                relationId = header.AddPictureData(pictureData, (int)NPOI.XWPF.UserModel.PictureType.PNG);
-            }
-            else if (context is XWPFFooter footer)
-            {
-                id = footer.GetXWPFDocument().GetNextPicNameNumber((int)NPOI.XWPF.UserModel.PictureType.PNG) - 1;
-                relationId = footer.AddPictureData(pictureData, (int)NPOI.XWPF.UserModel.PictureType.PNG);
-            }
-            else
-            {
-                return;
-            }
-
-            // Create the Drawing entry for it
-            NPOI.OpenXmlFormats.Dml.WordProcessing.CT_Drawing Drawing = run.GetCTR().AddNewDrawing();
-            CT_Inline inline = Drawing.AddNewInline();
-
-            inline.graphic = new CT_GraphicalObject
-            {
-                graphicData = new CT_GraphicalObjectData
-                {
-                    uri = "http://schemas.openxmlformats.org/drawingml/2006/picture"
-                }
-            };
-
-            // Setup the inline
-            inline.distT = (0);
-            inline.distR = (0);
-            inline.distB = (0);
-            inline.distL = (0);
-
-            NPOI.OpenXmlFormats.Dml.WordProcessing.CT_NonVisualDrawingProps docPr = inline.AddNewDocPr();
-            docPr.id = (uint)(id);
-            /* This name is not visible in Word 2010 anywhere. */
-            docPr.name = ("Drawing " + id);
-            docPr.descr = (filename);
-
-            NPOI.OpenXmlFormats.Dml.WordProcessing.CT_PositiveSize2D extent = inline.AddNewExtent();
-            extent.cx = (width);
-            extent.cy = (height);
-
-            // Grab the picture object
-            NPOI.OpenXmlFormats.Dml.Picture.CT_Picture pic = new NPOI.OpenXmlFormats.Dml.Picture.CT_Picture();
-
-            // Set it up
-            NPOI.OpenXmlFormats.Dml.Picture.CT_PictureNonVisual nvPicPr = pic.AddNewNvPicPr();
-
-            NPOI.OpenXmlFormats.Dml.CT_NonVisualDrawingProps cNvPr = nvPicPr.AddNewCNvPr();
-            /* use "0" for the id. See ECM-576, 20.2.2.3 */
-            cNvPr.id = 0;
-            /* This name is not visible in Word 2010 anywhere */
-            cNvPr.name = ("Picture " + id);
-            cNvPr.descr = (filename);
-
-            CT_NonVisualPictureProperties cNvPicPr = nvPicPr.AddNewCNvPicPr();
-            cNvPicPr.AddNewPicLocks().noChangeAspect = true;
-
-            CT_BlipFillProperties blipFill = pic.AddNewBlipFill();
-            CT_Blip blip = blipFill.AddNewBlip();
-            blip.embed = relationId;
-            blipFill.AddNewStretch().AddNewFillRect();
-
-            CT_ShapeProperties spPr = pic.AddNewSpPr();
-            CT_Transform2D xfrm = spPr.AddNewXfrm();
-
-            CT_Point2D off = xfrm.AddNewOff();
-            off.x = (0);
-            off.y = (0);
-
-            NPOI.OpenXmlFormats.Dml.CT_PositiveSize2D ext = xfrm.AddNewExt();
-            ext.cx = (width);
-            ext.cy = (height);
-
-            CT_PresetGeometry2D prstGeom = spPr.AddNewPrstGeom();
-            prstGeom.prst = (ST_ShapeType.rect);
-            prstGeom.AddNewAvLst();
-
-            using (var ms = new MemoryStream())
-            {
-                StreamWriter sw = new StreamWriter(ms);
-                pic.Write(sw, "pic:pic");
-                sw.Flush();
-                ms.Position = 0;
-                var sr = new StreamReader(ms);
-                var picXml = sr.ReadToEnd();
-                inline.graphic.graphicData.AddPicElement(picXml);
-            }
-
         }
 
         private static int ConvertPixelsToEmu(int pixels, float dpi)
