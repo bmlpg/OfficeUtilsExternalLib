@@ -1,4 +1,5 @@
-﻿using OutSystems.ExternalLibraries.SDK;
+﻿using System;
+using OutSystems.ExternalLibraries.SDK;
 
 namespace OfficeUtilsExternalLib.WordStructures
 {
@@ -33,9 +34,9 @@ namespace OfficeUtilsExternalLib.WordStructures
     [OSStructure(Description = "Textual value to insert in the word document.")]
     public struct WordText
     {
-        [OSStructureField(DataType = OSDataType.Text, Description = "Text value to insert in the word document", IsMandatory = true)]
+        [OSStructureField(DataType = OSDataType.Text, Description = "Text to replace the placeholder with", IsMandatory = true)]
         public string Text;
-        [OSStructureField(DataType = OSDataType.Text, Description = "Hyperlink to insert in the word document", IsMandatory = false)]
+        [OSStructureField(DataType = OSDataType.Text, Description = "URL to link the text to", IsMandatory = false)]
         public string Hyperlink;
     }
 
@@ -87,6 +88,8 @@ namespace OfficeUtilsExternalLib.WordStructures
         public int PictureWidth;
         [OSStructureField(DataType = OSDataType.Text, Description = "Text to replace the placeholder with", IsMandatory = false)]
         public string Text;
+        [OSStructureField(DataType = OSDataType.Text, Description = "URL to link the text to", IsMandatory = false)]
+        public string Hyperlink;
     }
 
     [OSStructure(Description = "Picture to insert in word document.")]
