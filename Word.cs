@@ -99,16 +99,16 @@ namespace OfficeUtilsExternalLib
 
         } // MssGenerateWordFile
 
-        private static void ProcessParagraphs(IEnumerator paragraphsEnumerator, WordStructures.WordFile wordFile, List<XWPFParagraph> ParagraphToRemove, Object context)
+        private static void ProcessParagraphs(IEnumerator paragraphsEnumerator, WordStructures.WordFile wordFile, List<XWPFParagraph> ParagraphsToRemove, Object context)
         {
             while (paragraphsEnumerator.MoveNext())
             {
                 XWPFParagraph paragraph = (XWPFParagraph)paragraphsEnumerator.Current;
-                ProcessParagraph(paragraph, wordFile, ParagraphToRemove, context);
+                ProcessParagraph(paragraph, wordFile, ParagraphsToRemove, context);
             }
         }
 
-        private static void ProcessParagraph(XWPFParagraph paragraph, WordStructures.WordFile wordFile, List<XWPFParagraph> ParagraphToRemove, Object context)
+        private static void ProcessParagraph(XWPFParagraph paragraph, WordStructures.WordFile wordFile, List<XWPFParagraph> ParagraphsToRemove, Object context)
         {
             for (int i = 0; i < wordFile.WordOutputs.Count; i++)
             {
@@ -124,7 +124,7 @@ namespace OfficeUtilsExternalLib
                             //If the placeholder is the only text in all paragraph then paragraph should be removed, if there is additional text - placeholder should be replaced by empty string.
                             if (paragraph.ParagraphText == wordOutput.Placeholder)
                             {
-                                ParagraphToRemove.Add(paragraph);
+                                ParagraphsToRemove.Add(paragraph);
                             }
                             else
                             {
