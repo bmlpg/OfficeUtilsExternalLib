@@ -1,17 +1,18 @@
 ﻿using System.Collections;
-using NPOI.XWPF.UserModel;
-using NPOI.OpenXmlFormats.Wordprocessing;
-using NPOI.OpenXml4Net.OPC;
 using System.Text;
-using SixLabors.ImageSharp;
+using NPOI.OpenXmlFormats.Wordprocessing;
+using NPOI.SS.Util;
+using NPOI.Util;
 using NPOI.XWPF.Extractor;
+using NPOI.XWPF.UserModel;
+using SixLabors.ImageSharp;
 
 namespace OfficeUtilsExternalLib
 {
     internal class Word
     {
 
-        public enum WordOutputType : int
+        private enum WordOutputType : int
         {
             Text = 1,
             TableLegacy = 2,
@@ -39,7 +40,7 @@ namespace OfficeUtilsExternalLib
             //Document
             IEnumerator documentParagraphsIterator = document.GetParagraphsEnumerator();
 
-            ProcessParagraphs(documentParagraphsIterator, wordFile, ParagraphsToRemove, document);
+            ProcessParagraphs(documentParagraphsIterator, wordFile, ParagraphsToRemove);
 
             if (ParagraphsToRemove.Count != 0)
             {
@@ -51,7 +52,7 @@ namespace OfficeUtilsExternalLib
             }
 
             IEnumerator documentTablesIterator = document.GetTablesEnumerator();
-            ProcessTables(documentTablesIterator, wordFile, TablesToRemove, document);
+            ProcessTables(documentTablesIterator, wordFile, TablesToRemove);
 
             if (TablesToRemove.Count != 0)
             {
@@ -70,10 +71,10 @@ namespace OfficeUtilsExternalLib
                 XWPFHeader header = (XWPFHeader)headerEnumerator.Current;
 
                 IEnumerator headerParagraphsEnumerator = header.GetListParagraph().GetEnumerator();
-                ProcessParagraphs(headerParagraphsEnumerator, wordFile, ParagraphsToRemove, header);
+                ProcessParagraphs(headerParagraphsEnumerator, wordFile, ParagraphsToRemove);
 
                 IEnumerator headerTablesEnumerator = header.Tables.GetEnumerator();
-                ProcessTables(headerTablesEnumerator, wordFile, TablesToRemove, header);
+                ProcessTables(headerTablesEnumerator, wordFile, TablesToRemove);
             }
 
 
@@ -85,10 +86,10 @@ namespace OfficeUtilsExternalLib
                 XWPFFooter footer = (XWPFFooter)footerEnumerator.Current;
 
                 IEnumerator footerParagraphsEnumerator = footer.GetListParagraph().GetEnumerator();
-                ProcessParagraphs(footerParagraphsEnumerator, wordFile, ParagraphsToRemove, footer);
+                ProcessParagraphs(footerParagraphsEnumerator, wordFile, ParagraphsToRemove);
 
                 IEnumerator footerTablesEnumerator = footer.Tables.GetEnumerator();
-                ProcessTables(footerTablesEnumerator, wordFile, TablesToRemove, footer);
+                ProcessTables(footerTablesEnumerator, wordFile, TablesToRemove);
             }
 
             MemoryStream outputStream = new MemoryStream();
@@ -99,16 +100,15 @@ namespace OfficeUtilsExternalLib
 
         } // MssGenerateWordFile
 
-        private static void ProcessParagraphs(IEnumerator paragraphsEnumerator, WordStructures.WordFile wordFile, List<XWPFParagraph> ParagraphsToRemove, Object context)
+        private static void ProcessParagraphs(IEnumerator paragraphsEnumerator, WordStructures.WordFile wordFile, List<XWPFParagraph> ParagraphsToRemove)
         {
             while (paragraphsEnumerator.MoveNext())
             {
                 XWPFParagraph paragraph = (XWPFParagraph)paragraphsEnumerator.Current;
-                ProcessParagraph(paragraph, wordFile, ParagraphsToRemove, context);
+                ProcessParagraph(paragraph, wordFile, ParagraphsToRemove);
             }
         }
-
-        private static void ProcessParagraph(XWPFParagraph paragraph, WordStructures.WordFile wordFile, List<XWPFParagraph> ParagraphsToRemove, Object context)
+        private static void ProcessParagraph(XWPFParagraph paragraph, WordStructures.WordFile wordFile, List<XWPFParagraph> ParagraphsToRemove)
         {
             for (int i = 0; i < wordFile.WordOutputs.Count; i++)
             {
@@ -116,8 +116,8 @@ namespace OfficeUtilsExternalLib
 
                 if (wordOutput.OutputType == (int)WordOutputType.Text || wordOutput.OutputType == (int)WordOutputType.Picture)
                 {
-                    int matchSPIndex = HasMatch(paragraph, wordOutput.Placeholder);
-                    if (matchSPIndex >= 0)
+                    int matchIndex = HasMatch(paragraph, wordOutput.Placeholder);
+                    if (matchIndex >= 0)
                     {
                         if (wordOutput.DeletePlaceholder)
                         {
@@ -128,18 +128,20 @@ namespace OfficeUtilsExternalLib
                             }
                             else
                             {
-                                ReplaceText(paragraph, wordOutput.Placeholder, "", matchSPIndex);
+                                ReplaceText(paragraph, wordOutput.Placeholder, matchIndex, "", "", null, 0);
                             }
                         }
                         else
                         {
+
                             if (wordOutput.OutputType == (int)WordOutputType.Text)
                             {
-                                ReplaceText(paragraph, wordOutput.Placeholder, wordOutput.WordText.Text, matchSPIndex, wordOutput.WordText.Hyperlink);
+                                string text = Utils.VerifyTextForXML(wordOutput.WordText.Text, "Placeholder:'" + wordOutput.Placeholder + "'", wordFile.Options.AutoRemoveInvalidXMLChars);
+                                ReplaceText(paragraph, wordOutput.Placeholder, matchIndex, text, wordOutput.WordText.Hyperlink, null, 0);
                             }
                             else if (wordOutput.OutputType == (int)WordOutputType.Picture)
                             {
-                                ProcessWordPicture(wordOutput.Placeholder, wordOutput.WordPicture, paragraph, context, matchSPIndex);
+                                ReplaceText(paragraph, wordOutput.Placeholder, matchIndex, "", "", wordOutput.WordPicture.Picture, wordOutput.WordPicture.Width);
                             }
                         }
                     }
@@ -154,7 +156,8 @@ namespace OfficeUtilsExternalLib
 
                             if (run.GetCTR().alternateContent != null)
                             {
-                                WordTextBox.ReplaceTextInTextBox(run.GetCTR().alternateContent, wordOutput.Placeholder, wordOutput.WordText.Text);
+                                string text = Utils.VerifyTextForXML(wordOutput.WordText.Text, "Placeholder:'" + wordOutput.Placeholder + "'", wordFile.Options.AutoRemoveInvalidXMLChars);
+                                WordTextBox.ReplaceTextInTextBox(run.GetCTR().alternateContent, wordOutput.Placeholder, text);
                             }
                         }
                     }
@@ -162,16 +165,16 @@ namespace OfficeUtilsExternalLib
             }
         }
 
-        private static void ProcessTables(IEnumerator tablesEnumerator, WordStructures.WordFile wordFile, List<XWPFTable> TableToRemove, object context)
+        private static void ProcessTables(IEnumerator tablesEnumerator, WordStructures.WordFile wordFile, List<XWPFTable> TableToRemove)
         {
             while (tablesEnumerator.MoveNext())
             {
                 XWPFTable table = (XWPFTable)tablesEnumerator.Current;
-                ProcessTable(table, wordFile, TableToRemove, context);
+                ProcessTable(table, wordFile, TableToRemove);
             }
         }
 
-        private static void ProcessTable(XWPFTable table, WordStructures.WordFile wordFile, List<XWPFTable> TableToRemove, object context)
+        private static void ProcessTable(XWPFTable table, WordStructures.WordFile wordFile, List<XWPFTable> TableToRemove)
         {
             IEnumerator rows = table.Rows.GetEnumerator();
             while (rows.MoveNext())
@@ -184,7 +187,7 @@ namespace OfficeUtilsExternalLib
                     XWPFTableCell cell = (XWPFTableCell)cells.Current;
                     IEnumerator cellParagraphs = cell.Paragraphs.GetEnumerator();
 
-                    ProcessParagraphs(cellParagraphs, wordFile, ParagraphToRemove, context);
+                    ProcessParagraphs(cellParagraphs, wordFile, ParagraphToRemove);
                     if (ParagraphToRemove.Count != 0)
                     {
                         foreach (XWPFParagraph p in ParagraphToRemove)
@@ -199,40 +202,42 @@ namespace OfficeUtilsExternalLib
                 }
             }
 
-            ProcessWordTableOutputs(wordFile, table, TableToRemove, context);
+            ProcessWordTableOutputs(wordFile, table, TableToRemove);
         }
 
 
 
-        private static void ProcessWordTableOutputs(WordStructures.WordFile wordFile, XWPFTable table, List<XWPFTable> TableToRemove, Object context)
+        private static void ProcessWordTableOutputs(WordStructures.WordFile wordFile, XWPFTable table, List<XWPFTable> TablesToRemove)
         {
             for (int i = 0; i < wordFile.WordOutputs.Count; i++)
             {
-                if (wordFile.WordOutputs[i].OutputType == (int)WordOutputType.TableLegacy || wordFile.WordOutputs[i].OutputType == (int)WordOutputType.Table)
+                WordStructures.WordOutput wordOutput = wordFile.WordOutputs[i];
+
+                if (wordOutput.OutputType == (int)WordOutputType.TableLegacy || wordOutput.OutputType == (int)WordOutputType.Table)
                 {
-                    if (table.GetRow(0).GetCell(0) == null && wordFile.WordOutputs[i].OutputType == (int)WordOutputType.TableLegacy) //Remove if the style 2 because this || (table.GetRow(ssWordFile.ssSTWordFile.ssWordOutputs[i].ssSTWordOutput.ssWordCustomTable.ssSTWorldCustomTable.ssStartRow).GetCell(0) == null && ssWordFile.ssSTWordFile.ssWordOutputs[i].ssSTWordOutput.ssOutputType == 4))
+                    if (table.GetRow(0).GetCell(0) == null && wordOutput.OutputType == (int)WordOutputType.TableLegacy) //Remove if the style 2 because this || (table.GetRow(ssWordFile.ssSTWordFile.ssWordOutputs[i].ssSTWordOutput.ssWordCustomTable.ssSTWorldCustomTable.ssStartRow).GetCell(0) == null && ssWordFile.ssSTWordFile.ssWordOutputs[i].ssSTWordOutput.ssOutputType == 4))
                     {
                         new Exception("Template doesn't have a predefined table for replacement");
                     }
-                    if ((table.GetRow(0).GetCell(0).GetText().Equals(wordFile.WordOutputs[i].Placeholder) && wordFile.WordOutputs[i].OutputType == (int)WordOutputType.TableLegacy))
+                    if ((table.GetRow(0).GetCell(0).GetText().Equals(wordOutput.Placeholder) && wordOutput.OutputType == (int)WordOutputType.TableLegacy))
                     {
-                        if (wordFile.WordOutputs[i].DeletePlaceholder)
+                        if (wordOutput.DeletePlaceholder)
                         {
-                            TableToRemove.Add(table);
+                            TablesToRemove.Add(table);
                         }
                         else
                         {
-                            ProcessWordLegacyTable(wordFile.WordOutputs[i].WordLegacyTable, table);
+                            ProcessWordLegacyTable(wordOutput.WordLegacyTable, table, wordFile.Options.AutoRemoveInvalidXMLChars);
                         }
                     }
                     else
                     {
-                        if (wordFile.WordOutputs[i].OutputType == (int)WordOutputType.Table)
-                            if (table.Rows.Count >= wordFile.WordOutputs[i].WordTable.StartRow + 1)
+                        if (wordOutput.OutputType == (int)WordOutputType.Table)
+                            if (table.Rows.Count >= wordOutput.WordTable.StartRow + 1)
                             {
-                                if (table.GetRow(wordFile.WordOutputs[i].WordTable.StartRow).GetCell(0).GetText().IndexOf(wordFile.WordOutputs[i].Placeholder) > -1)
+                                if (table.GetRow(wordOutput.WordTable.StartRow).GetCell(0).GetText().IndexOf(wordOutput.Placeholder) > -1)
                                 {
-                                    ProcessWordTable(wordFile.WordOutputs[i].WordTable, table, context);
+                                    ProcessWordTable(wordOutput.WordTable, table, wordFile.Options.AutoRemoveInvalidXMLChars);
                                 }
                             }
                     }
@@ -241,7 +246,7 @@ namespace OfficeUtilsExternalLib
         }
 
 
-        private static void ProcessWordTable(WordStructures.WordTable wordTable, XWPFTable table, Object context)
+        private static void ProcessWordTable(WordStructures.WordTable wordTable, XWPFTable table, bool autoRemoveInvalidXMLChars)
         {
 
             int templateRowIndex = wordTable.StartRow;
@@ -285,25 +290,24 @@ namespace OfficeUtilsExternalLib
                     {
                         WordStructures.WordTableRowReplacement tableRowReplacement = tableRow.RowReplacements[k];
 
-                        foreach (XWPFParagraph paragr in newTableCell.Paragraphs)
-                        {   
-                            int matchSPIndex = HasMatch(paragr, tableRowReplacement.Placeholder);
-                            if (matchSPIndex >= 0)
-                            {
+                        foreach (XWPFParagraph paragraph in newTableCell.Paragraphs)
+                        {
 
+                            int matchIndex = HasMatch(paragraph, tableRowReplacement.Placeholder);
+                            if (matchIndex >= 0)
+                            {
                                 if (tableRowReplacement.Picture.Length == 0)
                                 {
-                                    ReplaceText(paragr, tableRowReplacement.Placeholder, tableRowReplacement.Text, matchSPIndex);
+                                    string text = Utils.VerifyTextForXML(tableRowReplacement.Text, ("Table:(Placeholder:'" + tableRowReplacement.Placeholder + "',RowIndex:" + k + ")"), autoRemoveInvalidXMLChars);
+                                    ReplaceText(paragraph, tableRowReplacement.Placeholder, matchIndex, tableRowReplacement.Text, tableRowReplacement.Hyperlink, null, 0);
                                 }
                                 else if (tableRowReplacement.Picture.Length > 0)
                                 {
-                                    WordStructures.WordPicture pic;
-                                    pic.Picture = tableRowReplacement.Picture;
-                                    pic.Width = tableRowReplacement.PictureWidth;
-                                    ProcessWordPicture(tableRowReplacement.Placeholder, pic, paragr, context, matchSPIndex);
-                                }
+                                    ReplaceText(paragraph, tableRowReplacement.Placeholder, matchIndex, "", "", tableRowReplacement.Picture, tableRowReplacement.PictureWidth);
 
+                                }
                             }
+
                         }
                     }
                 }
@@ -323,7 +327,7 @@ namespace OfficeUtilsExternalLib
         private static XWPFTableRow CloneRow(XWPFTableRow templateRow)
         {
             XWPFTable table = templateRow.GetTable();
-            
+
             XWPFTableRow newRow = table.CreateRow();
             newRow.Height = templateRow.Height;
             newRow.IsCantSplitRow = templateRow.IsCantSplitRow;
@@ -381,7 +385,7 @@ namespace OfficeUtilsExternalLib
             return newRow;
         }
 
-        private static void ProcessWordLegacyTable(WordStructures.WordLegacyTable wordLegacyTable, XWPFTable table)
+        private static void ProcessWordLegacyTable(WordStructures.WordLegacyTable wordLegacyTable, XWPFTable table, bool autoRemoveInvalidXMLChars)
         {
             /*
              * For the each new created cell it's important to delete all paragraphs because by default .AddNewTableCell() and
@@ -414,6 +418,8 @@ namespace OfficeUtilsExternalLib
                 {
                     XWPFTableCell tableCell = table.GetRow(i).GetCell(j);
                     WordStructures.WordLegacyTableCell cell = row.TableCells[j];
+                    string text = Utils.VerifyTextForXML(cell.Value, ("LegacyTable:(RowIndex: " + i + ",ColumnIndex: " + j + ")"), autoRemoveInvalidXMLChars);
+
                     if (i == 0 && j == 0)
                     {
                         XWPFRun run = tableCell.Paragraphs[0].Runs[0];
@@ -422,7 +428,8 @@ namespace OfficeUtilsExternalLib
                         CT_Text textValue = (CT_Text)r.Items[0];
                         textValue.Value = "";
 
-                        string[] newTextValue = ProcessNewLines(cell.Value);
+
+                        string[] newTextValue = GetTextLines(text);
                         if (newTextValue.Length > 1)
                         {
                             run.SetText(newTextValue[0], 0);
@@ -435,7 +442,7 @@ namespace OfficeUtilsExternalLib
                         }
                         else
                         {
-                            run.SetText(cell.Value);
+                            run.SetText(text);
                         }
 
                         if (tableCell.Paragraphs[0].Runs.Count > 1)
@@ -472,7 +479,8 @@ namespace OfficeUtilsExternalLib
                         r.AddNewInstrText();
                         CT_Text textValue = (CT_Text)r.Items[0];
                         textValue.Value = "";
-                        string[] newTextValue = ProcessNewLines(cell.Value);
+
+                        string[] newTextValue = GetTextLines(text);
                         if (newTextValue.Length > 1)
                         {
                             run.SetText(newTextValue[0], 0);
@@ -485,7 +493,7 @@ namespace OfficeUtilsExternalLib
                         }
                         else
                         {
-                            run.SetText(cell.Value);
+                            run.SetText(text);
                         }
 
                     }
@@ -493,20 +501,27 @@ namespace OfficeUtilsExternalLib
             }
         }
 
-        private static string[] ProcessNewLines(string originalText)
+        private static string[] GetTextLines(string text)
+        {
+            text = SanitizedNewLines(text);
+
+            return text.Split(new string[] { ((char)10).ToString() }, StringSplitOptions.None);
+        }
+
+        //sanitize new lines: replace "\r\n" and "\r" with "\n"
+        private static string SanitizedNewLines(string text)
         {
             string newline = ((char)10).ToString() + (char)13;
-            originalText = originalText.Replace(newline, ((char)10).ToString());
+            text = text.Replace(newline, ((char)10).ToString());
             newline = ((char)13).ToString() + (char)10;
-            originalText = originalText.Replace(newline, ((char)10).ToString());
-            originalText = originalText.Replace((char)13, (char)10);
+            text = text.Replace(newline, ((char)10).ToString());
+            text = text.Replace((char)13, (char)10);
 
-            return originalText.Split(new string[] { ((char)10).ToString() }, StringSplitOptions.None);
+            return text;
         }
 
         private static int HasMatch(XWPFParagraph p, string pattern)
         {
-
             string text = GetTexts(p);
             return text.IndexOf(pattern);
 
@@ -633,14 +648,10 @@ namespace OfficeUtilsExternalLib
             return texts;
         }
 
-        private static void ReplaceText(XWPFParagraph p, string pattern, string replaceText, int matchIndex, string url = "")
+        private static void ReplaceText(XWPFParagraph p, string pattern, int matchIndex, string replacementText, string url, byte[] picture, int pictureWidth)
         {
             //sanitize new lines: replace "\r\n" and "\r" with "\n"
-            string newline = ((char)10).ToString() + (char)13;
-            replaceText = replaceText.Replace(newline, ((char)10).ToString());
-            newline = ((char)13).ToString() + (char)10;
-            replaceText = replaceText.Replace(newline, ((char)10).ToString());
-            replaceText = replaceText.Replace((char)13, (char)10);
+            replacementText = SanitizedNewLines(replacementText);
 
             //Get all the runs
             List<TextIndex> texts = GetTextIndexList(p);
@@ -651,138 +662,160 @@ namespace OfficeUtilsExternalLib
             int endRunIndex = texts.IndexOf(texts.Find(x => x.StartIndex <= placeholderEndIndex && x.EndIndex >= placeholderEndIndex));
             List<TextIndex> placeholderRuns = texts.GetRange(startRunIndex, endRunIndex - startRunIndex + 1);
 
-            //Get all the text for those runs and replace it
+            //Get all the text for those
             string runsText = placeholderRuns.Select(i => i.Text).Aggregate((i, j) => i + j);
-            string newRunText = runsText.Replace(pattern, replaceText);
-            if (newRunText.StartsWith("\t"))
-            {
-                newRunText = newRunText.Substring(1); // Don't repeat tabs. (TODO: If user want to replace with the text that starts with tab)
-            }
 
-            XWPFRun startRun = texts[startRunIndex].TextRun;
-
-            PackageRelationship newRelationship = null;
-            if (url != "") // This is if URL needs to be changed under the pattern
+            //Remove all but the first run    
+            for (int i = startRunIndex + 1; i <= endRunIndex; i++)
             {
-                if (startRun is XWPFHyperlinkRun)
+                try
                 {
-                    foreach (var part in p.Document.Package.GetParts())
-                    {
-                        PackagePart PP = (PackagePart)part;
-                        if (PP.PartName.Name == "/word/document.xml")
-                        {
-                            newRelationship = PP.AddExternalRelationship(url, "http://schemas.openxmlformats.org/officeDocument/2006/relationships/hyperlink");
-                        }
-                    }
-
-                    if (newRelationship == null)
-                        new Exception("Can't create new URL reference");
+                    p.RemoveRun(i);
                 }
-                else
+                catch (ArgumentException)
                 {
-                    bool urlFound = false;
-                    for (int i = startRunIndex; i >= 0; i--)
-                    {
-                        if (texts[i].TextRun.GetCTR().Items.Count > 0)
-                        {
-                            if (texts[i].TextRun.GetCTR().Items[0] is CT_Text text)
-                            {
-                                if (text.Value.Contains("HYPERLINK"))
-                                {
-                                    urlFound = true;
-                                    text.Value = "HYPERLINK " + url;
-                                }
-                            }
-                        }
-                    }
-                    if (!urlFound)
-                        new Exception("URL is not created on the template");
+                    throw new Exception("Cannot set hyperlink. The placeholder should be a regular text.");
                 }
             }
 
+            XWPFRun run; // Placeholder run
+            string runText = "";
+
+            if (url != "")
+            {
+                run = placeholderRuns[0].TextRun;
+
+                string[] sa = runsText.Split(new string[] { pattern }, StringSplitOptions.None);
+
+                if (sa[0] != "")
+                {
+                    placeholderRuns[0].TextRun.SetText(sa[0], 0);
+                }
+
+                string rId = p.Part.GetPackagePart().AddExternalRelationship(url, XWPFRelation.HYPERLINK.Relation).Id;
+                XWPFHyperlinkRun hyperlinkRun = p.InsertNewHyperlinkRun(startRunIndex + 1, rId);
+
+                if (sa[1] != "")
+                {
+                    XWPFRun runAfter = p.InsertNewRun((startRunIndex + 2));
+                    CloneRunProperties(run, runAfter);
+                    runAfter.SetText(sa[1], 0);
+                }
+
+                if (sa[0] == "")
+                {
+                    p.RemoveRun(startRunIndex);
+                }
+
+                run = hyperlinkRun;
+                runText = replacementText;
+            }
+            else if (picture != null && picture.Length > 0)
+            {
+                run = placeholderRuns[0].TextRun;
+                run.SetText(pattern, 0);
+
+                string[] sa = runsText.Split(new string[] { pattern }, StringSplitOptions.None);
+
+                if (sa[0] != "")
+                {
+                    XWPFRun runBefore = p.InsertNewRun(startRunIndex);
+                    CloneRunProperties(run, runBefore);
+                    runBefore.SetText(sa[0], 0);
+                }
+
+                if (sa[1] != "")
+                {
+                    XWPFRun runAfter;
+                    if (sa[0] != "")
+                    {
+                        runAfter = p.InsertNewRun((startRunIndex + 2));
+                    }
+                    else
+                    {
+                        runAfter = p.InsertNewRun((startRunIndex + 1));
+                    }
+                    CloneRunProperties(run, runAfter);
+                    runAfter.SetText(sa[1], 0);
+
+                }
+
+                AddPicture(run, picture, pictureWidth);
+            }
+            else
+            {
+                run = placeholderRuns[0].TextRun;
+                runText = runsText.Replace(pattern, replacementText);
+                if (runText.StartsWith("\t"))
+                {
+                    runText = runText.Substring(1); // Don't repeat tabs. (TODO: If user want to replace with the text that starts with tab)
+                }
+            }
 
             //Populate with replaced text first run
-            if (newRunText.Contains("\n"))
+            if (runText.Contains("\n"))
             {
                 //if the text within the run had already new lines than they need to be removed, because the logic is
                 //to recreate them again (because the can be new lines in the replacement text and NPOI can add <br> only to the end of the list)
 
-                string[] splitText = newRunText.Split(new string[] { "\n" }, StringSplitOptions.None);
-                startRun.SetText(splitText[0], 0);
+                string[] splitText = runText.Split(new string[] { "\n" }, StringSplitOptions.None);
+                run.SetText(splitText[0], 0);
 
-                foreach (var item in startRun.GetCTR().Items)
+                foreach (var item in run.GetCTR().Items)
                 {
                     if (item is CT_Br)
                     {
-                        startRun.GetCTR().Items.Remove(item);
+                        run.GetCTR().Items.Remove(item);
                     }
                 }
 
                 for (int i = 1; i != splitText.Length; i++)
                 {
-                    startRun.AddBreak(BreakClear.ALL);
-                    startRun.SetText(splitText[i], i);
+                    run.AddBreak(BreakClear.ALL);
+                    run.SetText(splitText[i], i);
                 }
 
             }
             else
             {
-                startRun.SetText(newRunText, 0);
+                run.SetText(runText, 0);
             }
 
-            if (startRun is XWPFHyperlinkRun run1 && newRelationship != null)
+            int nextMatchIndex = HasMatch(p, pattern);
+            if (nextMatchIndex >= 0)
             {
-                run1.GetCTHyperlink().id = newRelationship.Id;
-            }
-
-            //Empty the next runs
-            for (int i = startRunIndex + 1; i <= endRunIndex; i++)
-            {
-                XWPFRun nextRun = texts[i].TextRun;
-                nextRun.SetText("");
-                if (nextRun is XWPFHyperlinkRun run2 && newRelationship != null)
-                {
-                    run2.GetCTHyperlink().id = newRelationship.Id;
-                }
-            }
-
-            int matchSPIndex = HasMatch(p, pattern);
-            if (matchSPIndex >= 0)
-            {
-                ReplaceText(p, pattern, replaceText, matchSPIndex, url);
+                ReplaceText(p, pattern, nextMatchIndex, replacementText, url, null, 0);
             }
         }
 
-        private static void ProcessWordPicture(string placeholder, WordStructures.WordPicture wordPicture, XWPFParagraph paragraph, Object context, int matchIndex)
-        {
-            ReplaceText(paragraph, placeholder, "", matchIndex);
-            IEnumerator runs = paragraph.Runs.GetEnumerator();
-            if (runs.MoveNext())
+        private static void CloneRunProperties(XWPFRun source, XWPFRun dest)
+        { // clones the underlying w:rPr element
+            CT_RPr rPrSource = source.GetCTR().rPr;
+            if (rPrSource != null)
             {
-                XWPFRun run = (XWPFRun)runs.Current;
-                while (runs.MoveNext())
-                {
-                    run = (XWPFRun)runs.Current;
-                }
-
-                Image img = Image.Load(wordPicture.Picture);
-                int[] dpi = Utils.GetResolution(img);
-
-                int picWidth = wordPicture.Width;
-                int width = ConvertPixelsToEmu(picWidth == 0 ? img.Width : picWidth, (float)dpi[0]);
-                int height = ConvertPixelsToEmu((picWidth == 0 ? img.Height : (picWidth * img.Height) / img.Width), (float)dpi[1]);
-
-                MemoryStream ms = new MemoryStream(wordPicture.Picture);
-                NPOI.SS.UserModel.PictureType pictureType = Utils.GetPictureType(wordPicture.Picture);
-
-                run.AddPicture(
-                    ms,
-                    (int)pictureType,
-                    "picture",
-                    width,
-                    height
-                );
+                dest.GetCTR().rPr = rPrSource.Copy();
             }
+        }
+
+        private static void AddPicture(XWPFRun run, byte[] picture, int pictureWidth)
+        {
+
+            Image img = Image.Load(picture);
+            int[] dpi = ImageUtils.GetResolution(img);
+
+            int width = ConvertPixelsToEmu(pictureWidth == 0 ? img.Width : pictureWidth, (float)dpi[0]);
+            int height = ConvertPixelsToEmu((pictureWidth == 0 ? img.Height : (pictureWidth * img.Height) / img.Width), (float)dpi[1]);
+
+            MemoryStream ms = new MemoryStream(picture);
+            NPOI.SS.UserModel.PictureType pictureType = Utils.GetPictureType(picture);
+
+            run.AddPicture(
+                ms,
+                (int)pictureType,
+                "picture",
+                width,
+                height
+            );
         }
 
         private static int ConvertPixelsToEmu(int pixels, float dpi)

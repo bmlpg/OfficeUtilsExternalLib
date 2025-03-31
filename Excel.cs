@@ -582,7 +582,7 @@ namespace OfficeUtilsExternalLib
                     //other formats like WMF, EMF and PICT are not supported in Java
                     using (Image img = Image.Load(is1))
                     {
-                        int[] dpi = Utils.GetResolution(img);
+                        int[] dpi = ImageUtils.GetResolution(img);
 
                         //if DPI is zero then assume standard 96 DPI
                         //since cannot divide by zero
