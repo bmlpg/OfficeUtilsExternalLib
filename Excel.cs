@@ -1,11 +1,7 @@
-﻿using NPOI.HSSF.UserModel;
-using NPOI.OpenXmlFormats.Dml;
-using NPOI.SS.UserModel;
+﻿using NPOI.SS.UserModel;
 using NPOI.SS.Util;
-using NPOI.Util;
 using NPOI.XSSF.Extractor;
 using NPOI.XSSF.UserModel;
-using SixLabors.ImageSharp;
 
 namespace OfficeUtilsExternalLib
 {
