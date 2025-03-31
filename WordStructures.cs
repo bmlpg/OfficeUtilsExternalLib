@@ -1,5 +1,4 @@
-﻿using System;
-using OutSystems.ExternalLibraries.SDK;
+﻿using OutSystems.ExternalLibraries.SDK;
 
 namespace OfficeUtilsExternalLib.WordStructures
 {
@@ -10,6 +9,8 @@ namespace OfficeUtilsExternalLib.WordStructures
         public List<WordOutput> WordOutputs;
         [OSStructureField(DataType = OSDataType.BinaryData, Description = "Template word file", IsMandatory = true)]
         public byte[] Template;
+        [OSStructureField(Description = "Generation options", IsMandatory = false)]
+        public WordOptions Options;
     }
 
     [OSStructure(Description = "Replacements to be performed in word document.")]
@@ -99,5 +100,12 @@ namespace OfficeUtilsExternalLib.WordStructures
         public byte[] Picture;
         [OSStructureField(DataType = OSDataType.Integer, Description = "Width in pixels", IsMandatory = false)]
         public int Width;
+    }
+
+    [OSStructure(Description = "Picture to insert in word document.")]
+    public struct WordOptions
+    {
+        [OSStructureField(DataType = OSDataType.Boolean, Description = "Set to true for removing invalid XML characters automatically.", IsMandatory = false)]
+        public bool AutoRemoveInvalidXMLChars;
     }
 }
