@@ -689,7 +689,7 @@ namespace OfficeUtilsExternalLib
 
                 if (sa[0] != "")
                 {
-                    placeholderRuns[0].TextRun.SetText(sa[0], 0);
+                    run.SetText(sa[0], 0);
                 }
 
                 string rId = p.Part.GetPackagePart().AddExternalRelationship(url, XWPFRelation.HYPERLINK.Relation).Id;
