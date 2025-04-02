@@ -2,7 +2,7 @@
 
 namespace OfficeUtilsExternalLib
 {
-    [OSInterface(Description = "Provides advanced export capabilities to Excel and Word. This library is not meant to be consumed directly, as it is built as part of OfficeUtils Forge component.", IconResourceName = "OfficeUtilsExternalLib.resources.officeutils_logo.png",  Name = "OfficeUtilsExternalLib")]
+    [OSInterface(Description = "Provides advanced export capabilities to Excel and Word. Part of OfficeUtils component, and not meant to be consumed directly.", IconResourceName = "OfficeUtilsExternalLib.resources.officeutils_logo.png",  Name = "OfficeUtilsExternalLib")]
     public interface IOfficeUtilsExternalLib
     {
         [OSAction(Description = "Generate Excel binary content, based on all operations specified in ExcelFile variable.")]
