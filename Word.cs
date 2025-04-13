@@ -277,8 +277,7 @@ namespace OfficeUtilsExternalLib
             {
                 WordStructures.WordTableRow tableRow = wordTable.TableRows[i];
 
-                //XWPFTableRow newRow = templateRow.CloneRow();
-                XWPFTableRow newRow = CloneRow(templateRow);
+                XWPFTableRow newRow = templateRow.CloneRow();
 
                 IEnumerator tableCellsEnumerator = newRow.GetTableCells().GetEnumerator();
 
@@ -322,67 +321,6 @@ namespace OfficeUtilsExternalLib
             }
 
             table.RemoveRow(templateRowIndex);
-        }
-
-        private static XWPFTableRow CloneRow(XWPFTableRow templateRow)
-        {
-            XWPFTable table = templateRow.GetTable();
-
-            XWPFTableRow newRow = table.CreateRow();
-            newRow.Height = templateRow.Height;
-            newRow.IsCantSplitRow = templateRow.IsCantSplitRow;
-            newRow.IsRepeatHeader = templateRow.IsRepeatHeader;
-            for (int j = 0; j < templateRow.GetTableCells().Count; j++) // For each cell in the row
-            {
-                XWPFTableCell newCell = newRow.GetCell(j);
-                newCell.GetCTTc().tcPr = templateRow.GetCell(j).GetCTTc().tcPr; //Copy the properties of the cell
-                newCell.RemoveParagraph(0); //new cell is created with default stuff, that we don't want, we need a template copy
-                newCell.GetCTTc().Items.Clear();
-                ArrayList cT_TcItems = (ArrayList)templateRow.GetCell(j).GetCTTc().Items.Clone();
-                foreach (var item in cT_TcItems) // Add all items from the template
-                {
-
-                    if (item is CT_P p)
-                    {
-                        XWPFParagraph nP = newCell.AddParagraph();
-
-                        CT_P newP = newCell.GetCTTc().GetPList().Last();
-
-                        if (!p.pPr.IsEmpty)
-                        {
-                            newP.pPr = p.pPr;
-                        }
-
-                        foreach (CT_R run in p.GetRList())
-                        {
-
-                            XWPFRun nR = nP.CreateRun();
-                            nR.GetCTR().rPr = run.rPr;
-                            if (run.Items.Count > 0)
-                            {
-                                for (int c = 0; c < run.Items.Count; c++)
-                                {
-                                    if (run.Items[c] is CT_Text)
-                                    {
-                                        nR.SetText(run.GetTList().First().Value);
-                                    }
-                                    else if (run.Items[c] is CT_Empty && run.ItemsElementName[c] == RunItemsChoiceType.tab)
-                                    {
-                                        nR.AddTab();
-                                    }
-                                }
-                            }
-
-
-                        }
-                    }
-                    else newCell.GetCTTc().Items.Add(item);
-
-
-                }
-            }
-
-            return newRow;
         }
 
         private static void ProcessWordLegacyTable(WordStructures.WordLegacyTable wordLegacyTable, XWPFTable table, bool autoRemoveInvalidXMLChars)
