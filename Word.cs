@@ -670,7 +670,7 @@ namespace OfficeUtilsExternalLib
             {
                 try
                 {
-                    p.RemoveRun(i);
+                    p.RemoveRun(startRunIndex + 1);
                 }
                 catch (ArgumentException)
                 {
