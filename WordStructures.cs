@@ -39,6 +39,23 @@ namespace OfficeUtilsExternalLib.WordStructures
         public string Text;
         [OSStructureField(DataType = OSDataType.Text, Description = "URL to link the text to", IsMandatory = false)]
         public string Hyperlink;
+        [OSStructureField(Description = "Text style definitions", IsMandatory = false)]
+        public WordTextStyle TextStyle;
+    }
+
+    [OSStructure(Description = "Text style definitions.")]
+    public struct WordTextStyle
+    {
+        [OSStructureField(DataType = OSDataType.Text, Description = "Text color", IsMandatory = false)]
+        public string Color;
+        [OSStructureField(DataType = OSDataType.Integer, Description = "FontSize", IsMandatory = false)]
+        public int FontSize;
+        [OSStructureField(DataType = OSDataType.Boolean, Description = "Set to true to make text bold", IsMandatory = false)]
+        public bool IsBold;
+        [OSStructureField(DataType = OSDataType.Boolean, Description = "Set to true to make text italic", IsMandatory = false)]
+        public bool IsItalic;
+        [OSStructureField(DataType = OSDataType.Boolean, Description = "Set to true to make text underlined", IsMandatory = false)]
+        public bool IsUnderlined;
     }
 
     [OSStructure(Description = "Table to insert in the word document.")]
@@ -83,14 +100,10 @@ namespace OfficeUtilsExternalLib.WordStructures
     {
         [OSStructureField(DataType = OSDataType.Text, Description = "Placeholder to replace", IsMandatory = true)]
         public string Placeholder;
-        [OSStructureField(DataType = OSDataType.BinaryData, Description = "Picture to insert in the placeholder", IsMandatory = false)]
-        public byte[] Picture;
-        [OSStructureField(DataType = OSDataType.Integer, Description = "Picture width in pixels", IsMandatory = false)]
-        public int PictureWidth;
-        [OSStructureField(DataType = OSDataType.Text, Description = "Text to replace the placeholder with", IsMandatory = false)]
-        public string Text;
-        [OSStructureField(DataType = OSDataType.Text, Description = "URL to link the text to", IsMandatory = false)]
-        public string Hyperlink;
+        [OSStructureField(Description = "Text to replace the placeholder with", IsMandatory = false)]
+        public WordText WordText;
+        [OSStructureField(Description = "Picture to replace the placeholder with", IsMandatory = false)]
+        public WordPicture WordPicture;
     }
 
     [OSStructure(Description = "Picture to insert in word document.")]
