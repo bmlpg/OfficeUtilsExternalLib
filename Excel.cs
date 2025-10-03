@@ -403,7 +403,7 @@ namespace OfficeUtilsExternalLib
 
             int pictureIdx = outputWorkbook.AddPicture(excelPicture.PictureBinary, pictureType);
 
-            IDrawing patriarch = outputSheet.CreateDrawingPatriarch();
+            IDrawing<IShape> patriarch = outputSheet.CreateDrawingPatriarch();
 
             ICreationHelper helper = outputWorkbook.GetCreationHelper();
 

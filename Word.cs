@@ -5,6 +5,7 @@ using NPOI.SS.Util;
 using NPOI.Util;
 using NPOI.XWPF.Extractor;
 using NPOI.XWPF.UserModel;
+using OfficeUtilsExternalLib.WordStructures;
 using SixLabors.ImageSharp;
 
 namespace OfficeUtilsExternalLib
@@ -156,8 +157,13 @@ namespace OfficeUtilsExternalLib
 
                             if (run.GetCTR().alternateContent != null)
                             {
-                                string text = Utils.VerifyTextForXML(wordOutput.WordText.Text, "Placeholder:'" + wordOutput.Placeholder + "'", wordFile.Options.AutoRemoveInvalidXMLChars);
-                                WordTextBox.ReplaceTextInTextBox(run.GetCTR().alternateContent, wordOutput.Placeholder, text);
+
+                                foreach (var alternateContent in run.GetCTR().alternateContent)
+                                {
+                                    string text = Utils.VerifyTextForXML(wordOutput.WordText.Text, "Placeholder:'" + wordOutput.Placeholder + "'", wordFile.Options.AutoRemoveInvalidXMLChars);
+                                    WordTextBox.ReplaceTextInTextBox(alternateContent, wordOutput.Placeholder, text);
+                                }
+
                             }
                         }
                     }
@@ -460,97 +466,9 @@ namespace OfficeUtilsExternalLib
 
         private static int HasMatch(XWPFParagraph p, string pattern)
         {
-            string text = GetTexts(p);
+            string text = p.ParagraphText;
             return text.IndexOf(pattern);
 
-        }
-
-        private static string GetTexts(XWPFParagraph p)
-        {
-            StringBuilder concat = new StringBuilder();
-            IEnumerator runs = p.Runs.GetEnumerator();
-            while (runs.MoveNext())
-            {
-                XWPFRun run = (XWPFRun)runs.Current;
-                StringBuilder text = new StringBuilder();
-                for (int i = 0; i < run.GetCTR().Items.Count; i++)
-                {
-                    object o = run.GetCTR().Items[i];
-                    if (o is CT_Text)
-                    {
-
-                        if (!(run.GetCTR().ItemsElementName[i] == RunItemsChoiceType.instrText))
-                        {
-                            text.Append(((CT_Text)o).Value);
-                        }
-                    }
-
-                    // Complex type evaluation (currently only for extraction of check boxes)
-                    if (o is CT_FldChar)
-                    {
-                        CT_FldChar ctfldChar = ((CT_FldChar)o);
-                        if (ctfldChar.fldCharType == ST_FldCharType.begin)
-                        {
-                            if (ctfldChar.ffData != null)
-                            {
-                                foreach (CT_FFCheckBox checkBox in ctfldChar.ffData.GetCheckBoxList())
-                                {
-                                    if (checkBox.@default.val == true)
-                                    {
-                                        text.Append("|X|");
-                                    }
-                                    else
-                                    {
-                                        text.Append("|_|");
-                                    }
-                                }
-                            }
-                        }
-                    }
-
-                    if (o is CT_PTab)
-                    {
-                        text.Append("\t");
-                    }
-                    if (o is CT_Br)
-                    {
-                        text.Append("\n");
-                    }
-
-                    if (o is CT_Empty)
-                    {
-                        // Some inline text elements Get returned not as
-                        //  themselves, but as CTEmpty, owing to some odd
-                        //  defInitions around line 5642 of the XSDs
-                        // This bit works around it, and replicates the above
-                        //  rules for that case
-                        if (run.GetCTR().ItemsElementName[i] == RunItemsChoiceType.tab)
-                        {
-                            text.Append("\t");
-                        }
-                        if (run.GetCTR().ItemsElementName[i] == RunItemsChoiceType.br)
-                        {
-                            text.Append("\n");
-                        }
-                        if (run.GetCTR().ItemsElementName[i] == RunItemsChoiceType.cr)
-                        {
-                            text.Append("\n");
-                        }
-                    }
-                    if (o is CT_FtnEdnRef)
-                    {
-                        CT_FtnEdnRef ftn = (CT_FtnEdnRef)o;
-                        String footnoteRef = ftn.DomNode.LocalName.Equals("footnoteReference") ?
-                            "[footnoteRef:" + ftn.id + "]" : "[endnoteRef:" + ftn.id + "]";
-                        text.Append(footnoteRef);
-                    }
-                }
-
-
-                concat.Append(text.ToString());
-
-            }
-            return concat.ToString();
         }
 
         private class TextIndex
@@ -603,14 +521,7 @@ namespace OfficeUtilsExternalLib
             //Remove all but the first run    
             for (int i = endRunIndex; i > startRunIndex; i--)
             {
-                try
-                {
-                    p.RemoveRun(i);
-                }
-                catch (ArgumentException)
-                {
-                    throw new Exception("Cannot set hyperlink. The placeholder should be a regular text.");
-                }
+                p.RemoveRun(i);
             }
 
             XWPFRun run; // Placeholder run
@@ -627,8 +538,8 @@ namespace OfficeUtilsExternalLib
                     run.SetText(sa[0], 0);
                 }
 
-                string rId = p.Part.GetPackagePart().AddExternalRelationship(wordText.Hyperlink, XWPFRelation.HYPERLINK.Relation).Id;
-                XWPFHyperlinkRun hyperlinkRun = p.InsertNewHyperlinkRun(startRunIndex + 1, rId);
+                XWPFHyperlinkRun hyperlinkRun = p.InsertNewHyperlinkRun(startRunIndex + 1, wordText.Hyperlink);
+                hyperlinkRun.SetStyle("Hyperlink");
 
                 if (sa[1] != "")
                 {
@@ -655,24 +566,26 @@ namespace OfficeUtilsExternalLib
                 }
             }
 
-            //Populate with replaced text first run
+            //Populates the first run with the replacement text
             if (runText.Contains("\n"))
             {
-                //if the text within the run had already new lines than they need to be removed, because the logic is
-                //to recreate them again (because the can be new lines in the replacement text and NPOI can add <br> only to the end of the list)
-
-                string[] splitText = runText.Split(new string[] { "\n" }, StringSplitOptions.None);
-                run.SetText(splitText[0], 0);
-
-                foreach (var item in run.GetCTR().Items)
+                //if the text within the run had already new lines they need to be removed.
+                for (int i = run.GetCTR().SizeOfBrArray() - 1; i >= 0; i--)
                 {
-                    if (item is CT_Br)
-                    {
-                        run.GetCTR().Items.Remove(item);
-                    }
+                    run.GetCTR().RemoveBr(i);
                 }
 
-                for (int i = 1; i != splitText.Length; i++)
+                //remove all text tags except the first one
+                for (int i = run.GetCTR().SizeOfTArray() - 1; i >= 1; i--)
+                {
+                    run.GetCTR().RemoveT(i);
+                }
+
+                string[] splitText = runText.Split(new string[] { "\n" }, StringSplitOptions.None);
+
+                run.SetText(splitText[0], 0);
+
+                for (int i = 1; i < splitText.Length; i++)
                 {
                     run.AddBreak(BreakClear.ALL);
                     run.SetText(splitText[i], i);
