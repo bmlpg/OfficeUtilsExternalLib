@@ -622,14 +622,7 @@ namespace OfficeUtilsExternalLib
             //Remove all but the first run    
             for (int i = endRunIndex; i > startRunIndex; i--)
             {
-                try
-                {
-                    p.RemoveRun(i);
-                }
-                catch (ArgumentException)
-                {
-                    throw new Exception("Cannot set hyperlink. The placeholder should be a regular text.");
-                }
+                p.RemoveRun(i);
             }
 
             XWPFRun run = placeholderRuns[0].TextRun;
