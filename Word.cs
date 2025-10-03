@@ -5,7 +5,6 @@ using NPOI.SS.Util;
 using NPOI.Util;
 using NPOI.XWPF.Extractor;
 using NPOI.XWPF.UserModel;
-using OfficeUtilsExternalLib.WordStructures;
 using SixLabors.ImageSharp;
 
 namespace OfficeUtilsExternalLib
