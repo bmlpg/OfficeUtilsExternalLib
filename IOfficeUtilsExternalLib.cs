@@ -38,7 +38,6 @@ namespace OfficeUtilsExternalLib
         );
 
         [OSAction(Description = "Run this action within a Timer if you want to prevent AWS Lambda \"cold starts\".")]
-        public void Ping(
-        );
+        public void Ping();
     }
 }
