@@ -21,10 +21,5 @@
         {
             Content = Word.ExtractWordFileContent(WordBinary);
         }
-
-        public void Ping()
-        {
-
-        }
     }
 }
