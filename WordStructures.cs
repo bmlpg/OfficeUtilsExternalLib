@@ -115,7 +115,7 @@ namespace OfficeUtilsExternalLib.WordStructures
         public int Width;
     }
 
-    [OSStructure(Description = "Picture to insert in word document.")]
+    [OSStructure(Description = "Word generation options.")]
     public struct WordOptions
     {
         [OSStructureField(DataType = OSDataType.Boolean, Description = "Set to true for removing invalid XML characters automatically.", IsMandatory = false)]
