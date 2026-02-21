@@ -517,52 +517,52 @@ namespace OfficeUtilsExternalLib
             //Get all the text for those
             string runsText = placeholderRuns.Select(i => i.Text).Aggregate((i, j) => i + j);
 
-            //Remove all but the first run    
+            //Remove all but the first run (template)    
             for (int i = endRunIndex; i > startRunIndex; i--)
             {
                 p.RemoveRun(i);
             }
 
-            XWPFRun run; // Placeholder run
-            string runText = "";
+
+            XWPFRun templateRun = placeholderRuns[0].TextRun; // Template run
+            p.RemoveRun(startRunIndex); //Remove template run
+            XWPFRun run; //New text run
+
+            string[] sa = runsText.Split(new string[] { pattern }, StringSplitOptions.None);
+
+            if (sa[1] != "")
+            {
+                XWPFRun runAfter = p.InsertNewRun(startRunIndex);
+                CloneRunProperties(templateRun, runAfter);
+                runAfter.SetText(sa[1], 0);
+            }
 
             if (wordText.Hyperlink != "")
             {
-                run = placeholderRuns[0].TextRun;
-
-                string[] sa = runsText.Split(new string[] { pattern }, StringSplitOptions.None);
-
-                if (sa[0] != "")
-                {
-                    run.SetText(sa[0], 0);
-                }
-
-                XWPFHyperlinkRun hyperlinkRun = p.InsertNewHyperlinkRun(startRunIndex + 1, wordText.Hyperlink);
+                XWPFHyperlinkRun hyperlinkRun = p.InsertNewHyperlinkRun(startRunIndex, wordText.Hyperlink);
                 hyperlinkRun.SetStyle("Hyperlink");
-
-                if (sa[1] != "")
-                {
-                    XWPFRun runAfter = p.InsertNewRun((startRunIndex + 2));
-                    CloneRunProperties(run, runAfter);
-                    runAfter.SetText(sa[1], 0);
-                }
-
-                if (sa[0] == "")
-                {
-                    p.RemoveRun(startRunIndex);
-                }
-
                 run = hyperlinkRun;
-                runText = SanitizedNewLines(wordText.Text);
             }
             else
             {
-                run = placeholderRuns[0].TextRun;
-                runText = runsText.Replace(pattern, SanitizedNewLines(wordText.Text));
-                if (runText.StartsWith("\t"))
-                {
-                    runText = runText.Substring(1); // Don't repeat tabs. (TODO: If user want to replace with the text that starts with tab)
-                }
+                XWPFRun textRun = p.InsertNewRun(startRunIndex);
+                CloneRunProperties(templateRun, textRun);
+                textRun.SetText("", 0);
+                run = textRun;
+            }
+
+            if (sa[0] != "")
+            {
+                XWPFRun runBefore = p.InsertNewRun(startRunIndex);
+                CloneRunProperties(templateRun, runBefore);
+                runBefore.SetText(sa[0], 0);
+            }
+
+
+            string runText = SanitizedNewLines(wordText.Text);
+            if (runText.StartsWith("\t"))
+            {
+                runText = runText.Substring(1); // Don't repeat tabs. (TODO: If user want to replace with the text that starts with tab)
             }
 
             //Populates the first run with the replacement text
@@ -630,27 +630,18 @@ namespace OfficeUtilsExternalLib
 
             string[] sa = runsText.Split(new string[] { pattern }, StringSplitOptions.None);
 
+            if (sa[1] != "")
+            {
+                XWPFRun runAfter = p.InsertNewRun((startRunIndex + 1));
+                CloneRunProperties(run, runAfter);
+                runAfter.SetText(sa[1], 0);
+            }
+
             if (sa[0] != "")
             {
                 XWPFRun runBefore = p.InsertNewRun(startRunIndex);
                 CloneRunProperties(run, runBefore);
                 runBefore.SetText(sa[0], 0);
-            }
-
-            if (sa[1] != "")
-            {
-                XWPFRun runAfter;
-                if (sa[0] != "")
-                {
-                    runAfter = p.InsertNewRun((startRunIndex + 2));
-                }
-                else
-                {
-                    runAfter = p.InsertNewRun((startRunIndex + 1));
-                }
-                CloneRunProperties(run, runAfter);
-                runAfter.SetText(sa[1], 0);
-
             }
 
             AddPicture(run, wordPicture.Picture, wordPicture.Width);

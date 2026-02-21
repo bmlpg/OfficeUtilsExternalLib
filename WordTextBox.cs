@@ -81,7 +81,7 @@ namespace OfficeUtilsExternalLib
                     {
                         if (textPos >= startText)
                         {
-                            String candidate = item.FirstChild.InnerText;
+                            String candidate = item.InnerText;
                             if (runPos == startRun)
                                 charPos = startChar;
                             else
