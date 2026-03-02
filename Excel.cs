@@ -272,7 +272,7 @@ namespace OfficeUtilsExternalLib
                             case CellType.String:
                                 outputCell.SetCellValue(inputCell.StringCellValue);
                                 break;
-                            case CellType.Unknown:
+                            case CellType._None:
                                 outputCell.SetCellValue(inputCell.StringCellValue);
                                 break;
                         }
