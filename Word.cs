@@ -160,7 +160,7 @@ namespace OfficeUtilsExternalLib
                                 foreach (var alternateContent in run.GetCTR().alternateContent)
                                 {
                                     string text = Utils.VerifyTextForXML(wordOutput.WordText.Text, "Placeholder:'" + wordOutput.Placeholder + "'", wordFile.Options.AutoRemoveInvalidXMLChars);
-                                    WordTextBox.ReplaceTextInTextBox(alternateContent, wordOutput.Placeholder, text);
+                                    WordTextBox.ReplaceTextInTextBox(alternateContent, wordOutput.Placeholder, text, wordOutput.WordText.TextStyle);
                                 }
 
                             }

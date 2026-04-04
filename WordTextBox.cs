@@ -1,13 +1,14 @@
 ﻿using System.Collections;
+using System.Xml;
 using NPOI.OpenXmlFormats.Vml;
 using NPOI.XWPF.UserModel;
-using System.Xml;
+using OfficeUtilsExternalLib.WordStructures;
 
 namespace OfficeUtilsExternalLib
 {
     internal class WordTextBox
     {
-        public static void ReplaceTextInTextBox(CT_AlternateContent alternateContent, string pattern, string replaceText)
+        public static void ReplaceTextInTextBox(CT_AlternateContent alternateContent, string pattern, string replaceText, WordTextStyle textStyle)
         {
             string textBoxXML = alternateContent.InnerXml;
 
@@ -24,13 +25,13 @@ namespace OfficeUtilsExternalLib
             while (paragraphNodesEnumerator.MoveNext())
             {
                 XmlNode paragraphNode = (XmlNode)paragraphNodesEnumerator.Current;
-                ReplaceParagraphText(paragraphNode, nm, pattern, replaceText);
+                ReplaceParagraphText(paragraphNode, nm, pattern, replaceText, textStyle);
             }
 
             alternateContent.InnerXml = xmlDocument.FirstChild.InnerXml;
         }
 
-        private static void ReplaceParagraphText(XmlNode paragraphNode, XmlNamespaceManager nm, string oldText, string newText)
+        private static void ReplaceParagraphText(XmlNode paragraphNode, XmlNamespaceManager nm, string oldText, string newText, WordTextStyle textStyle)
         {
             XmlNodeList runNodes = paragraphNode.SelectNodes("w:r", nm);
 
@@ -43,7 +44,13 @@ namespace OfficeUtilsExternalLib
                 return;
             if (ts.BeginRun == ts.EndRun)
             {
-                ReplaceRunText(runNodes[ts.BeginRun], nm, oldText, newText);
+                ReplaceRunText(
+                    runNodes[ts.BeginRun],
+                    nm,
+                    oldText,
+                    newText,
+                    textStyle
+                );
             }
             else
             {
@@ -51,7 +58,8 @@ namespace OfficeUtilsExternalLib
                     runNodes[ts.BeginRun],
                     nm,
                     GetRunText(runNodes[ts.BeginRun], nm).Substring(ts.BeginChar),
-                    newText + GetRunText(runNodes[ts.EndRun], nm).Substring(ts.EndChar + 1)
+                    newText + GetRunText(runNodes[ts.EndRun], nm).Substring(ts.EndChar + 1),
+                    textStyle
                 );
 
                 for (int i = ts.EndRun; i > ts.BeginRun; i--)
@@ -134,12 +142,54 @@ namespace OfficeUtilsExternalLib
             return null;
         }
 
-        private static void ReplaceRunText(XmlNode runNode, XmlNamespaceManager nm, string oldText, string newText)
+        private static void ReplaceRunText(XmlNode runNode, XmlNamespaceManager nm, string oldText, string newText, WordTextStyle textStyle)
         {
             XmlNode textNode = runNode.SelectSingleNode("w:t", nm);
             if (textNode != null)
             {
                 textNode.FirstChild.Value = textNode.FirstChild.Value.Replace(oldText, newText);
+            }
+
+            XmlNode propertiesNode = runNode.SelectSingleNode("w:rPr", nm);
+            if (propertiesNode == null)
+            {
+                propertiesNode = runNode.OwnerDocument.CreateElement("rPr", nm.LookupNamespace("w"));
+                runNode.PrependChild(propertiesNode);
+            }
+
+            if (textStyle.Color != "")
+            {
+                XmlElement colorElem = (XmlElement)(propertiesNode.SelectSingleNode("w:color", nm)
+                       ?? propertiesNode.AppendChild(runNode.OwnerDocument.CreateElement("w", "color", nm.LookupNamespace("w"))));
+                colorElem.SetAttribute("val", nm.LookupNamespace("w"), textStyle.Color);
+            }
+            if (textStyle.FontSize > 0)
+            {
+                XmlElement szElem = (XmlElement)(propertiesNode.SelectSingleNode("w:sz", nm)
+                       ?? propertiesNode.AppendChild(runNode.OwnerDocument.CreateElement("w", "sz", nm.LookupNamespace("w"))));
+                szElem.SetAttribute("val", nm.LookupNamespace("w"), (textStyle.FontSize * 2).ToString());
+
+                XmlElement szCsElem = (XmlElement)(propertiesNode.SelectSingleNode("w:szCs", nm)
+                       ?? propertiesNode.AppendChild(runNode.OwnerDocument.CreateElement("w", "szCs", nm.LookupNamespace("w"))));
+                szCsElem.SetAttribute("val", nm.LookupNamespace("w"), (textStyle.FontSize * 2).ToString());
+            }
+            if (textStyle.IsBold)
+            {
+                XmlElement bElem = (XmlElement)(propertiesNode.SelectSingleNode("w:b", nm)
+                       ?? propertiesNode.AppendChild(runNode.OwnerDocument.CreateElement("w", "b", nm.LookupNamespace("w"))));
+                bElem.SetAttribute("val", nm.LookupNamespace("w"), "true");
+            }
+            if (textStyle.IsItalic)
+            {
+                XmlElement iElem = (XmlElement)(propertiesNode.SelectSingleNode("w:i", nm)
+                       ?? propertiesNode.AppendChild(runNode.OwnerDocument.CreateElement("w", "i", nm.LookupNamespace("w"))));
+                iElem.SetAttribute("val", nm.LookupNamespace("w"), "true");
+            }
+            if (textStyle.IsUnderlined)
+            {
+                XmlElement uElem = (XmlElement)(propertiesNode.SelectSingleNode("w:u", nm)
+                       ?? propertiesNode.AppendChild(runNode.OwnerDocument.CreateElement("w", "u", nm.LookupNamespace("w"))));
+                uElem.SetAttribute("val", nm.LookupNamespace("w"), "single");
             }
         }
 
